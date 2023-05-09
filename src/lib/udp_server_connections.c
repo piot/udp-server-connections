@@ -2,29 +2,12 @@
  *  Copyright (c) Peter Bjorklund. All rights reserved.
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-#include <udp-server-connections/connections.h>
-#include <udp-transport/udp_transport.h>
 #include <clog/clog.h>
+#include <udp-server-connections/connections.h>
 
-void udpServerConnectionsInit(UdpServerConnections* self, UdpServerSocket* udpServer)
+static int udpServerConnectionsReceive(void* _self, int* connection, uint8_t* buf, size_t maxDatagramSize)
 {
-    self->udpServer = udpServer;
-    self->connectionCapacity = 16;
-    for (size_t i = 0; i < self->connectionCapacity; ++i) {
-        self->connections[i].addr.sin_addr.s_addr = 0;
-        self->connections[i].parent = self;
-    }
-}
-
-static int wrappedSend(void* _self, const uint8_t* data, size_t size)
-{
-    UdpServerConnectionsRemote* self = _self;
-    return udpServerSend(self->parent->udpServer, data, size, &self->addr);
-}
-
-int udpServerConnectionsReceive(UdpServerConnections* self, int* connection, uint8_t* buf,
-                                           size_t maxDatagramSize, bool* wasConnected, UdpTransportOut* response)
-{
+    UdpServerConnections* self = (UdpServerConnections*) _self;
     struct sockaddr_in receivedFromAddr;
     int octetsReceived = udpServerReceive(self->udpServer, buf, &maxDatagramSize, &receivedFromAddr);
     if (octetsReceived == 0) {
@@ -39,9 +22,6 @@ int udpServerConnectionsReceive(UdpServerConnections* self, int* connection, uin
         if (receivedFromAddr.sin_addr.s_addr == self->connections[i].addr.sin_addr.s_addr &&
             receivedFromAddr.sin_port == self->connections[i].addr.sin_port) {
             *connection = i;
-            response->self = &self->connections[i];
-            response->send = wrappedSend;
-            *wasConnected = false;
             return octetsReceived;
         }
     }
@@ -49,10 +29,7 @@ int udpServerConnectionsReceive(UdpServerConnections* self, int* connection, uin
     for (size_t i = 0; i < self->connectionCapacity; ++i) {
         if (self->connections[i].addr.sin_addr.s_addr == 0) {
             *connection = i;
-            response->self = &self->connections[i];
-            response->send = wrappedSend;
             self->connections[i].addr = receivedFromAddr;
-            *wasConnected = true;
             CLOG_DEBUG("Received from new udp address. Assigned to connectionId: %zu", i)
             return octetsReceived;
         }
@@ -62,10 +39,25 @@ int udpServerConnectionsReceive(UdpServerConnections* self, int* connection, uin
     return -94;
 }
 
-int udpServerConnectionsSend(UdpServerConnections* self, int connectionId, uint8_t* buf, size_t
-octetCount)
+static int udpServerConnectionsSend(void* _self, int connectionId, const uint8_t* buf, size_t octetCount)
 {
+    UdpServerConnections* self = (UdpServerConnections*) _self;
+
     UdpServerConnectionsRemote* connection = &self->connections[connectionId];
 
     return udpServerSend(self->udpServer, buf, octetCount, &connection->addr);
+}
+
+void udpServerConnectionsInit(UdpServerConnections* self, UdpServerSocket* udpServer)
+{
+    self->udpServer = udpServer;
+    self->connectionCapacity = 16;
+    for (size_t i = 0; i < self->connectionCapacity; ++i) {
+        self->connections[i].addr.sin_addr.s_addr = 0;
+        self->connections[i].parent = self;
+    }
+
+    self->multiTransport.self = self;
+    self->multiTransport.receive = udpServerConnectionsReceive;
+    self->multiTransport.send = udpServerConnectionsSend;
 }
