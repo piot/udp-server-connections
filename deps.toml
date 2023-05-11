@@ -10,3 +10,11 @@ version = "*"
 [[dependencies]]
 name = 'piot/udp-transport'
 version = "*"
+
+[[dependencies]]
+name = 'piot/udp-connections-serialize'
+version = "*"
+
+[[dependencies]]
+name = "piot/secure-random-c"
+version = "*"

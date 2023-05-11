@@ -6,12 +6,15 @@
 #define UDP_SERVER_CONNECTIONS_H
 
 #include <stdint.h>
+#include <udp-connections-serialize/serialize.h>
 #include <udp-server/udp_server.h>
 #include <udp-transport/multi.h>
 
 typedef struct UdpServerConnectionsRemote {
     struct sockaddr_in addr;
     struct UdpServerConnections* parent;
+    UdpConnectionsSerializeConnectionId fullConnectionId;
+    UdpConnectionsSerializeClientNonce clientNonce;
 } UdpServerConnectionsRemote;
 
 typedef struct UdpServerConnections {
@@ -19,8 +22,10 @@ typedef struct UdpServerConnections {
     UdpServerConnectionsRemote connections[16];
     size_t connectionCapacity;
     DatagramTransportMultiInOut multiTransport;
+    UdpConnectionsSerializeServerChallenge secretChallengeKey;
+    Clog log;
 } UdpServerConnections;
 
-void udpServerConnectionsInit(UdpServerConnections* self, UdpServerSocket* udpServer);
+void udpServerConnectionsInit(UdpServerConnections* self, UdpServerSocket* udpServer, Clog log);
 
 #endif
