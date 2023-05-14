@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 
     CLOG_VERBOSE("initialized")
 
-    DatagramTransportMultiInOut* multiTransport = &serverConnections.multiTransport;
+    DatagramTransportMulti* multiTransport = &serverConnections.multiTransport;
 
 #define MAX_BUF_SIZE (1200U)
     uint8_t buf[MAX_BUF_SIZE];
@@ -46,12 +46,12 @@ int main(int argc, char* argv[])
     uint32_t tickId = 0;
     int connectionIndex;
     while (true) {
-        size_t octetCountFound = datagramTransportMultiReceive(multiTransport, &connectionIndex, buf, MAX_BUF_SIZE);
+        size_t octetCountFound = datagramTransportMultiReceiveFrom(multiTransport, &connectionIndex, buf, MAX_BUF_SIZE);
         if (octetCountFound > 0) {
             tc_snprintf(outBuf, MAX_BUF_SIZE, "Nice to see '%s'", buf);
             //            CLOG_INFO("received connection:%d octetCount:%zu '%s'", connectionIndex, octetCountFound,
             //            buf);
-            datagramTransportMultiSend(multiTransport, connectionIndex, outBuf, strlen(outBuf) + 1);
+            datagramTransportMultiSendTo(multiTransport, connectionIndex, outBuf, strlen(outBuf) + 1);
         }
         tickId++;
     }

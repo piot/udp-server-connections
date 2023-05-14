@@ -214,7 +214,7 @@ void udpServerConnectionsInit(UdpServerConnections* self, UdpServerSocket* udpSe
     }
 
     self->multiTransport.self = self;
-    self->multiTransport.receive = udpServerConnectionsReceive;
-    self->multiTransport.send = udpServerConnectionsSend;
+    self->multiTransport.receiveFrom = udpServerConnectionsReceive;
+    self->multiTransport.sendTo = udpServerConnectionsSend;
     self->secretChallengeKey = secureRandomUInt64();
 }

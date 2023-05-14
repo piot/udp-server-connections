@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <udp-connections-serialize/serialize.h>
 #include <udp-server/udp_server.h>
-#include <udp-transport/multi.h>
+#include <datagram-transport/multi.h>
 
 typedef struct UdpServerConnectionsRemote {
     struct sockaddr_in addr;
@@ -21,7 +21,7 @@ typedef struct UdpServerConnections {
     struct UdpServerSocket* udpServer;
     UdpServerConnectionsRemote connections[16];
     size_t connectionCapacity;
-    DatagramTransportMultiInOut multiTransport;
+    DatagramTransportMulti multiTransport;
     UdpConnectionsSerializeServerChallenge secretChallengeKey;
     Clog log;
 } UdpServerConnections;

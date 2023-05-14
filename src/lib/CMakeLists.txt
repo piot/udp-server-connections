@@ -57,7 +57,7 @@ target_include_directories(udp_server_connections
 target_include_directories(udp_server_connections
         PUBLIC ${DEPS}piot/udp-server-c/src/include)
 target_include_directories(udp_server_connections
-        PUBLIC ${DEPS}piot/udp-transport/src/include)
+        PUBLIC ${DEPS}piot/datagram-transport-c/src/include)
 target_include_directories(udp_server_connections
         PUBLIC ${DEPS}piot/flood-c/src/include)
 target_include_directories(udp_server_connections
