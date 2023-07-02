@@ -5,6 +5,7 @@
 #include <clog/clog.h>
 #include <flood/in_stream.h>
 #include <flood/out_stream.h>
+#include <inttypes.h>
 #include <secure-random/secure_random.h>
 #include <udp-connections-serialize/serialize.h>
 #include <udp-connections-serialize/server_in.h>
@@ -25,7 +26,8 @@ static int inChallenge(UdpServerConnections* self, struct sockaddr_in sockAddr, 
     // Challenge is done to avoid at least the simplest forms of IP spoofing
     uint64_t constructedChallenge = extremelyUnsecureCipher(clientNonce, self->secretChallengeKey);
 
-    CLOG_C_VERBOSE(&self->log, "received challenge request from client nonce %016lX and constructed challenge %016lX",
+    CLOG_C_VERBOSE(&self->log,
+                   "received challenge request from client nonce %" PRIX64 " and constructed challenge %" PRIX64,
                    clientNonce, constructedChallenge)
 
     FldOutStream outStream;
@@ -68,14 +70,14 @@ static int inConnect(UdpServerConnections* self, struct sockaddr_in sockAddr, Fl
     }
 
     UdpServerConnectionsRemote* connection = &self->connections[foundIndex];
-    UdpServerConnectionsUniqueId uniqueId = udpServerConnectionsUniqueIdFromIndex(foundIndex);
+    UdpServerConnectionsUniqueId uniqueId = udpServerConnectionsUniqueIdFromIndex((size_t) foundIndex);
     UdpConnectionsSerializeConnectionId constructedConnectionId = uniqueId;
     connection->fullConnectionId = constructedConnectionId;
     connection->addr = sockAddr;
     connection->clientNonce = clientNonce;
 
-    CLOG_C_DEBUG(&self->log, "connection established: nonce:%016lX connectionId:%016lX (index:%d)", clientNonce,
-                 constructedConnectionId, foundIndex)
+    CLOG_C_DEBUG(&self->log, "connection established: nonce:%" PRIX64 " connectionId:%" PRIX64 " (index:%d)",
+                 clientNonce, constructedConnectionId, foundIndex)
 
     FldOutStream outStream;
     uint8_t buf[128];
@@ -97,8 +99,6 @@ static int inDatagram(UdpServerConnections* self, struct sockaddr_in sockAddr, F
             CLOG_C_SOFT_ERROR(&self->log, "illegal cmd %02X", cmd)
             return -5;
     }
-
-    return 0;
 }
 
 static int inPacketFromClient(UdpServerConnections* self, struct sockaddr_in sockAddr, FldInStream* inStream,
@@ -142,21 +142,19 @@ static int inPacketFromClient(UdpServerConnections* self, struct sockaddr_in soc
     }
 
     fldInStreamReadOctets(inStream, buf, octetCountFollowingInStream);
-    *foundConnectionIndex = connectionIndex;
+    *foundConnectionIndex = (int) connectionIndex;
 
     return octetCountFollowingInStream;
 }
 
-static int udpServerConnectionsReceive(void* _self, int* connectionIndex, uint8_t* buf, size_t maxDatagramSize)
+static ssize_t udpServerConnectionsReceive(void* _self, int* connectionIndex, uint8_t* buf, size_t maxDatagramSize)
 {
     UdpServerConnections* self = (UdpServerConnections*) _self;
     if (maxDatagramSize < 1200) {
-        CLOG_C_ERROR(&self->log, "you must provide a buffer of at least 1200 octets, encountered:%d", maxDatagramSize)
+        CLOG_C_ERROR(&self->log, "you must provide a buffer of at least 1200 octets, encountered:%zu", maxDatagramSize)
     }
     struct sockaddr_in receivedFromAddr;
-    size_t maxAndReceiveOctetCountFromUdpServer = maxDatagramSize;
-    int octetsReceived = udpServerReceive(self->udpServer, buf, &maxAndReceiveOctetCountFromUdpServer,
-                                          &receivedFromAddr);
+    ssize_t octetsReceived = udpServerReceive(self->udpServer, buf, maxDatagramSize, &receivedFromAddr);
     if (octetsReceived == 0) {
         return 0;
     }
@@ -167,7 +165,7 @@ static int udpServerConnectionsReceive(void* _self, int* connectionIndex, uint8_
 
     FldInStream inStream;
 
-    fldInStreamInit(&inStream, buf, octetsReceived);
+    fldInStreamInit(&inStream, buf, (size_t) octetsReceived);
     uint8_t cmd;
     fldInStreamReadUInt8(&inStream, &cmd);
     if (cmd == UdpConnectionsSerializeCmdPacket) {
@@ -195,7 +193,7 @@ static int udpServerConnectionsSend(void* _self, int connectionId, const uint8_t
     FldOutStream outStream;
 
     fldOutStreamInit(&outStream, outBuf, 1210);
-    udpConnectionsSerializeServerOutPacketHeader(&outStream, connection->fullConnectionId, octetCount);
+    udpConnectionsSerializeServerOutPacketHeader(&outStream, connection->fullConnectionId, (uint16_t) octetCount);
     fldOutStreamWriteOctets(&outStream, buf, octetCount);
 
     return udpServerSend(self->udpServer, outBuf, outStream.pos, &connection->addr);
