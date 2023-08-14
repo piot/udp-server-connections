@@ -1,0 +1,5 @@
+cmakegenversion = "0.0.0"
+sourcedirs = ["."]
+artifact_type = "executable"
+name = "udp-server-example"
+dependencies = ["udp-server-connections"]
